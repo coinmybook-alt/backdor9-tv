@@ -1,84 +1,38 @@
-from http.server import HTTPServer
-from player import ProxyPlayer
-import routing, xbmc, xbmcgui,xbmcaddon
-from threading import Thread
-from xbmcgui import ListItem
-import xbmcplugin
-from xbmcplugin import addDirectoryItem, endOfDirectory
+from flask import Flask, render_template_string
+import os
 
+app = Flask(__name__)
 
-import sys
+KANALLAR = [
+    {"ad": "beIN Sports 1", "url": "https://hls.imrantoy7384.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-1.m3u8"},
+    {"ad": "TRT Spor", "url": "https://tv-trtspor1.medya.trt.com.tr/master_720.m3u8"}
+]
 
-from server import MyServer
+HTML_KODU = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { background: #000; color: #0f0; text-align: center; font-family: sans-serif; }
+        .btn { background: #222; color: #fff; padding: 20px; border: 1px solid #0f0; display: block; margin: 10px; text-decoration: none; border-radius: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2 style="color: #0f0;">BACKDOR9 TV</h2>
+    {% for k in kanallar %}
+    <a href="intent://{{ k.url.split('://')[1] }}#Intent;scheme=https;type=application/x-mpegURL;package=com.mxtech.videoplayer.ad;S.title={{ k.ad }};end" class="btn">
+        {{ k.ad }}
+    </a>
+    {% endfor %}
+</body>
+</html>
+"""
 
-plugin = routing.Plugin()
-
-def startProxy():
-    def serve_forever(httpd):
-        with httpd:
-            httpd.serve_forever()
-    
-    webServer = HTTPServer(("127.0.0.1", 49777), MyServer)
-    
-    xbmc.log("JetProxy: starting server at http://127.0.0.1:49777"), xbmc.LOGINFO
-    webServer.server_activate()
-    thread = Thread(target=serve_forever, args=(webServer,))
-    thread.setDaemon(True)
-    thread.start()
-    xbmc.log("JetProxy: server started!", xbmc.LOGINFO)
-
-    return webServer
-
-@plugin.route('/')
+@app.route('/')
 def index():
-    addDirectoryItem(plugin.handle, plugin.url_for(play, "http://oscartv.mine.nu:25461/live/jmr1234/jmr1234/6139.m3u8"), ListItem("Example link"), False)
-    addDirectoryItem(plugin.handle, plugin.url_for(test), ListItem("Test link"), False)
-    endOfDirectory(plugin.handle)
-
-@plugin.route("/test")
-def test():
-    link = xbmcgui.Dialog().input("Enter link")
-    if not link:
-        return
-    play(link)
-
-@plugin.route('/play/<path:url>')
-def play(url):
-    try:
-        proxy = startProxy()
-    except:
-        proxy = None
-        pass
-    
-    
-    stream_url = "http://127.0.0.1:49777?url=" + url
-
-    addon = xbmcaddon.Addon()
-    behavior = addon.getSettingString("inputstream_behavior")
-    # xbmcgui.Dialog().ok("Debug", f"inputstream_behavior value: {behavior}")
-    
-
-    xbmc.log(f"JetProxy: inputstream_behavior setting value is '{behavior}'", xbmc.LOGINFO)
-    if behavior == "Always On":
-        use_inputstream = True  # Always On
-    elif behavior == "Always Off":
-        use_inputstream = False  # Always Off
-    elif behavior == "Always Ask":
-        use_inputstream = xbmcgui.Dialog().yesno("JetProxy", "Use inputstream.ffmpegdirect for playback?\n\nIf you want to change this settings to be always [COLOR aqua]ON[/COLOR] or [COLOR aqua]OFF[/COLOR] go to settings in [COLOR yellow]JetProxy addon[/COLOR].")
-    else:
-        use_inputstream = xbmcgui.Dialog().yesno("JetProxy", "Use inputstream.ffmpegdirect for playback?\n\nIf you want to change this settings to be always [COLOR aqua]ON[/COLOR] or [COLOR aqua]OFF[/COLOR] go to settings in [COLOR yellow]JetProxy addon[/COLOR].")
-
-    item = ListItem("JetProxy Stream", path=stream_url)
-    item.setInfo('video', {'plot': "JetProxy Stream"})
-    if use_inputstream:
-        item.setProperty('inputstream', 'inputstream.ffmpegdirect')
-        item.setMimeType('application/x-mpegURL')
-        item.setProperty('inputstream.ffmpegdirect.is_realtime_stream', 'true')
-        item.setProperty('inputstream.ffmpegdirect.stream_mode', 'timeshift')
-        item.setProperty('inputstream.ffmpegdirect.manifest_type', 'hls')
-    xbmcplugin.setResolvedUrl(plugin.handle, True, item)
-    xbmc.Player().play(stream_url, listitem=item)
-    return True
+    return render_template_string(HTML_KODU, kanallar=KANALLAR)
 
 if __name__ == '__main__':
-    plugin.run()
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
